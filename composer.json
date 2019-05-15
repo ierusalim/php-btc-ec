@@ -1,6 +1,6 @@
 {
     "name": "ierusalim/php-btc-ec",
-    "description": "Simple signature and verify Bitcoin ECDSA spec256k1",
+    "description": "Simple signature and verify Bitcoin ECDSA secp256k1",
     "authors": [
         {
             "name": "Alexander Jer",
