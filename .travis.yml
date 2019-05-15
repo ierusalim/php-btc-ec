@@ -1,0 +1,23 @@
+language: php
+
+php:
+  - 5.5
+  - 5.6
+  - 7.0
+  - 7.1
+  - 7.2
+  - 7.3
+
+# execute any number of scripts before the test run, custom env's are available as variables
+before_script:
+  - travis_retry composer self-update
+  - composer config notify-on-install false
+  - travis_retry composer update --no-interaction --prefer-source
+
+# omitting "script:" will default to phpunit
+script:
+  - vendor/bin/phpunit --configuration phpunit.xml --coverage-clover=coverage.xml
+
+
+after_success:
+ - bash <(curl -s https://codecov.io/bash)
