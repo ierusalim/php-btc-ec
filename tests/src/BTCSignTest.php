@@ -18,7 +18,10 @@ class BTCSignTest extends \PHPUnit_Framework_TestCase
      */
     protected function setUp()
     {
-        $this->object = new BTCSign;
+        $ec = new BTCSign;
+        $this->object = $ec;
+        $ec->setPrivateKey("70846c6c1bfaf8d269198c064dd25c307ab2ac399d7b83b943132f05745888f1");
+        //$ec->generateRandomPrivateKey();
     }
 
     /**
@@ -31,13 +34,12 @@ class BTCSignTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @covers BTCec\BTCSign::pubKeyFromSign
-     * @todo   Implement testPubKeyFromSign().
+     * @covers BTCec\BTCSign::pubKeyFromSign64
+     * @todo   Implement testPubKeyFromSign64().
      */
-    public function testPubKeyFromSign()
+    public function testPubKeyFromSign64()
     {
         $ec = $this->object;
-        $ec->generateRandomPrivateKey();
 
         $priv_hex = $ec->getPrivateKey();
 
@@ -47,12 +49,88 @@ class BTCSignTest extends \PHPUnit_Framework_TestCase
 
         $this->assertEquals(66,strlen($pub_hex));
 
-        $message = "Test message for sign";
+        $message = "Test message for sign testPubKeyFromSign64";
 
-        $signature = $ec->signMessage($message, true);
+        $sign_64 = $ec->signMessage($message, true);
 
-        $derKey = $ec->pubKeyFromSign($signature, $message);
+        $derKey = $ec->pubKeyFromSign64($sign_64, $message);
 
         $this->assertEquals($pub_hex, $derKey);
+    }
+
+    /**
+     * @covers BTCec\BTCSign::signMsgHex
+     * @todo   Implement testSignMsgHex().
+     */
+    public function testSignMsgHex()
+    {
+        $ec = $this->object;
+
+        $pub_hex = $ec->getPubKey();
+        $this->assertEquals(66,strlen($pub_hex));
+
+        $message = "Test message for sign testSignMsgHex";
+
+        $sign_hex = $ec->signMsgHex($message);
+
+        $this->assertEquals(130,strlen($sign_hex));
+
+        $sign_64 = base64_encode(hex2bin($sign_hex));
+
+        $derKey = $ec->pubKeyFromSign64($sign_64, $message);
+
+        $this->assertEquals($pub_hex, $derKey);
+    }
+
+    /**
+     * @covers BTCec\BTCSign::simpleSign64
+     * @todo   Implement testSimpleSign64().
+     */
+    public function testSimpleSign64()
+    {
+        $ec = $this->object;
+        $pub_hex = $ec->getPubKey();
+
+        $message = "Test message for sign testSimpleSign64";
+
+        $sign_64 = $ec->simpleSign64($message);
+
+        $derKey = $ec->pubKeyFromSign64($sign_64, $message);
+
+        $this->assertEquals($pub_hex, $derKey);
+    }
+
+    /**
+     * @covers BTCec\BTCSign::geta160
+     * @todo   Implement testGeta160().
+     */
+    public function testGeta160()
+    {
+        $ec = $this->object;
+        $a160 = $ec->geta160();
+        $this->assertEquals(160, (strlen($a160)/2)*8);
+
+        $pub_hex = $ec->getPubKey();
+        $b160 = hash('ripemd160', hex2bin($pub_hex));
+
+        $this->assertEquals($a160, $b160);
+    }
+
+    /**
+     * @covers BTCec\BTCSign::verifySign64a160
+     * @todo   Implement testVerifySign64a160().
+     */
+    public function testVerifySign64a160()
+    {
+        $ec = $this->object;
+        $a160 = $ec->geta160();
+
+        $message = "Test message for sign testVerifySign64a160";
+
+        $sign_64 = $ec->simpleSign64($message);
+
+        $res = $ec->verifySign64a160($message, $sign_64, $a160);
+
+        $this->assertTrue($res);
     }
 }
