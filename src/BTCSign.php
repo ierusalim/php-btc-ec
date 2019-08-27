@@ -4,6 +4,116 @@ namespace BTCec;
 
 class BTCSign Extends \BitcoinPHP\BitcoinECDSA\BitcoinECDSA
 {
+    public $rnd_fn;
+
+    /**
+     * Analog of PHP7-function random_bytes($length)
+     *
+     * @param integer $len
+     * @return string
+     */
+    public function genRandomBytes($len)
+    {
+        if ($len > 0) {
+            return \call_user_func($this->rnd_fn, $len);
+        }
+    }
+
+    public function __construct($private_key_file = '', $password_file = '', $cipher = "aes-256-ecb")
+    {
+        //check available function for quick-generation random bytes
+        foreach ([
+            '\random_bytes', //for PHP7
+            '\openssl_random_pseudo_bytes', // for PHP5
+        ] as $fn) {
+            if (\function_exists($fn)) {
+                $this->rnd_fn = $fn;
+                break;
+            }
+        }
+        if (empty($this->rnd_fn)) {
+            throw new \Exception('Your system is not able to generate strong enough random numbers');
+        }
+
+        parent::__construct();
+
+        if (!empty($private_key_file)) {
+            $ret = $this->loadOrGenPrivateKey($private_key_file, $password_file, $cipher);
+            if (is_string($ret)) {
+                throw new \Exception($ret);
+            }
+        }
+    }
+
+    public function loadOrGenPrivateKey($private_key_file, $password_file, $cipher = "aes-256-ecb")
+    {
+        if (is_file($private_key_file)) {
+            $ret = $this->loadPrivateKeyFromFile($private_key_file, $password_file, $cipher);
+        } else {
+            $ret = $this->generatePrivateKeyToFile($private_key_file, $password_file, $cipher);
+        }
+        return $ret;
+    }
+
+    public function loadPrivateKeyFromFile($private_key_file, $password_file, $cipher = "aes-256-ecb")
+    {
+        if (!is_file($password_file)) {
+            return "Password file not found";
+        }
+        if (!is_file($private_key_file)) {
+            return "Private_key file not found";
+        }
+        $password = @file_get_contents($password_file);
+        if (strlen($password) != 64) {
+            return "Bad password file length";
+        }
+        $password = @hex2bin($password);
+        if (strlen($password) != 32) {
+            return "Incorrect password file";
+        }
+        $encrypted = @file_get_contents($private_key_file);
+        $decrypted = \openssl_decrypt($encrypted, $cipher, $password);
+        if (!is_string($decrypted) || strlen($decrypted) != 64 || (strlen(hex2bin($decrypted)) != 32)) {
+            return "Can't decrypt private key";
+        }
+        $this->k = $decrypted;
+        return false;
+    }
+
+    public function generatePrivateKeyToFile($private_key_file, $password_file, $cipher = "aes-256-ecb")
+    {
+        if (!is_file($password_file)) {
+            $password = bin2hex($this->genRandomBytes(32));
+            if (!file_put_contents($password_file, $password)) {
+                return "Can't write password file";
+            }
+        }
+        $password = file_get_contents($password_file);
+        if (strlen($password) != 64) {
+            return "Bad password file length";
+        }
+        $password = @hex2bin($password);
+        if (strlen($password) != 32) {
+            return "Incorrect password file";
+        }
+
+        do {
+            $res = bin2hex($this->genRandomBytes(32));
+            $res = hash('sha256', $res . microtime(true) . $password);
+
+        } while(gmp_cmp(gmp_init($res, 16), gmp_sub($this->n, gmp_init(1, 10))) === 1); // make sure the generate string is smaller than n
+
+        $encrypted = \openssl_encrypt($res, $cipher, $password);
+        file_put_contents($private_key_file, $encrypted);
+        $encrypted = file_get_contents($private_key_file);
+        $decrypted = \openssl_decrypt($encrypted, $cipher, $password);
+        if ($decrypted != $res) {
+            return "Error back-decryption private key";
+        }
+        $this->k = $res;
+        return false;
+    }
+
     public function geta160($pub_key = null)
     {
         if (is_null($pub_key)) {
@@ -11,6 +121,7 @@ class BTCSign Extends \BitcoinPHP\BitcoinECDSA\BitcoinECDSA
         }
         return hash('ripemd160', hex2bin($pub_key));
     }
+
     public function verifySign64a160(
         $message,
         $sign_64,
