@@ -4,7 +4,7 @@ namespace BTCec;
 
 class BTCSign Extends \BitcoinPHP\BitcoinECDSA\BitcoinECDSA
 {
-    public $rnd_fn;
+    public $rnd_fn; // callable random_bytes function
 
     /**
      * Analog of PHP7-function random_bytes($length)
